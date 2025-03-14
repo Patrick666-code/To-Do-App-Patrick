@@ -1,64 +1,90 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import { useEffect, useState } from 'react';
+import './App.css';
 
 function App() {
   const [tasks, setTasks] = useState([]);
-  const [title, setTitle] = useState("")
+  const [title, setTitle] = useState("");
+
+  
+  const fetchTasks = () => {
+    fetch("http://localhost:3050/liste_abrufen")
+      .then((res) => res.json())
+      .then(setTasks)
+      .catch((err) => console.error(err));
+  };
 
   useEffect(() => {
-    fetch("http://localhost:3050/liste_abrufen")
-    .then((res) => res.json())
-    .then(setTasks)
+    fetchTasks();
   }, []);
 
   const itemHinzufuegen = () => {
-
-    //Option 1 für Eingabecheck: falls Eingabefeld leer ist, mach nicht weiter
-
-    if (!title) {
+    if (!title.trim()) {
       return;
     }
-
     fetch("http://localhost:3050/add", {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({title}),
-    })      
-    // hier möchte ich, dass die Liste in der App auch aktualisiert wird
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    })
       .then((res) => res.json())
-      .then((neueAufgabe) => setTasks([...tasks, neueAufgabe]))
+      .then((neueAufgabe) => {
+        
+        setTasks([...tasks, neueAufgabe]);
+      })
+      .catch((err) => console.error(err));
 
     setTitle("");
-  }
-  
+  };
+
   const itemLoeschen = (id_nummer) => {
-    //console.log("Gedrückte Taste:" + id_nummer);
     fetch(`http://localhost:3050/delete/${id_nummer}`, {
       method: "DELETE",
     })
+      .then(() => {
+        
+        setTasks(tasks.filter(task => task.id !== id_nummer));
+      })
+      .catch((err) => console.error(err));
+  };
 
-  }
-
+  const toggleCheckbox = (task) => {
+    fetch(`http://localhost:3050/update/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed: !task.completed }),
+    })
+      .then((res) => res.json())
+      .then((updatedTask) => {
+        
+        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+      })
+      .catch((err) => console.error(err));
+  };
 
   return (
     <>
       <h1>To-Do List</h1>
-      <input value={title}  onChange={(e)=>setTitle(e.target.value)} />
-      <button disabled={!title.trim()} onClick={itemHinzufuegen}>Add</button> {/* Option 2 für Eingabecheck: Button wird disabled bleiben wenn das Eingabefeld leer ist*/}
-
+      <input 
+        value={title}  
+        onChange={(e) => setTitle(e.target.value)} 
+        placeholder="Neues Todo" 
+      />
+      <button disabled={!title.trim()} onClick={itemHinzufuegen}>Add</button>
       <ul>
-        {// hier gehört der Code, um die To-Do Liste dynamisch zu gestalten
-        tasks.map(({id, title, completed}) => (
+        {tasks.map(({ id, title, completed }) => (
           <li key={id}>
-            <input type='checkbox' />
+            <input 
+              type='checkbox' 
+              checked={completed}
+              onChange={() => toggleCheckbox({ id, title, completed })}
+            />
             {title}
             <button onClick={() => itemLoeschen(id)}>X</button>
           </li>
-        ))
-        }
+        ))}
       </ul>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
